@@ -3,403 +3,457 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dalton's Underground Highway</title>
+    <title>Dalton's Sewer System 2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        @keyframes bounce-slight {
-            0%, 100% { transform: translateY(-5%); }
-            50% { transform: translateY(5%); }
+        body { background-color: #3b2f2f; /* Deep dirt color */ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .dirt-pattern {
+            background-image: radial-gradient(#4a3b3b 15%, transparent 16%), radial-gradient(#4a3b3b 15%, transparent 16%);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
         }
-        .animate-bounce-slight {
-            animation: bounce-slight 2s infinite ease-in-out;
+        @keyframes flush-spin {
+            0% { transform: rotate(0deg) scale(1); }
+            100% { transform: rotate(720deg) scale(0); }
+        }
+        .flushing { animation: flush-spin 1s ease-in forwards; }
+        
+        .water-flow {
+            transition: all 0.3s linear;
         }
     </style>
 </head>
-<body class="bg-slate-100">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
-        // --- Icons as Components ---
-        const Play = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-        );
-        const RotateCw = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 12"/><path d="M21 5v7h-7"/></svg>
-        );
-        const CheckCircle = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        );
-        const ArrowRight = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        );
-        const Home = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        );
-        const Factory = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/></svg>
-        );
-        const MapIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-        );
-        const Droplet = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 2.69l5.74 5.88a6 6 0 0 1-1.97 9.43H8.23a6 6 0 0 1-1.97-9.43l5.74-5.88z"/></svg>
-        );
-        const Settings = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        );
-
-        // --- UI Components ---
-
-        const Card = ({ children, className = "" }) => (
-            <div className={`bg-white rounded-xl shadow-lg border-2 border-blue-900 overflow-hidden ${className}`}>
-                {children}
+        // --- ICONS & ASSETS ---
+        
+        const ToiletIcon = ({ isFlushing }) => (
+            <div className="relative w-16 h-20 mx-auto">
+                <div className="absolute top-0 left-2 w-12 h-8 bg-white border-2 border-gray-300 rounded-t-lg z-10"></div> {/* Tank */}
+                <div className="absolute top-8 left-0 w-16 h-10 bg-white border-2 border-gray-300 rounded-b-2xl z-10 flex items-center justify-center overflow-hidden">
+                    {/* Water in bowl */}
+                    <div className={`w-10 h-6 bg-blue-300 rounded-full transition-all duration-1000 ${isFlushing ? 'flushing' : ''}`}></div>
+                </div>
+                <div className="absolute bottom-0 left-4 w-8 h-8 bg-gray-100 border-x-2 border-gray-300 z-0"></div> {/* Base */}
             </div>
         );
 
-        const Button = ({ onClick, children, className = "", disabled = false }) => (
-            <button
-                onClick={onClick}
-                disabled={disabled}
-                className={`px-6 py-3 rounded-full font-bold text-lg transition-all transform active:scale-95 flex items-center gap-2
-                ${disabled 
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                    : 'bg-yellow-400 hover:bg-yellow-300 text-blue-900 border-b-4 border-yellow-600 active:border-b-0 active:translate-y-1 shadow-md'
-                } ${className}`}
-            >
-                {children}
-            </button>
+        const FactoryIcon = ({ fillLevel }) => (
+            <div className="relative w-20 h-24 mx-auto flex flex-col items-center">
+                <div className="w-full flex justify-center gap-1 mb-1">
+                    <div className="w-2 h-8 bg-gray-400"></div>
+                    <div className="w-2 h-6 bg-gray-400"></div>
+                </div>
+                <div className="w-20 h-16 bg-white border-4 border-blue-900 rounded-lg relative overflow-hidden">
+                    <div 
+                        className="absolute bottom-0 left-0 w-full bg-blue-500 transition-all duration-500 ease-out"
+                        style={{ height: `${fillLevel}%` }}
+                    >
+                        <div className="w-full h-2 bg-blue-300 opacity-50 animate-pulse"></div>
+                    </div>
+                </div>
+                <span className="text-xs text-white mt-1 font-bold tracking-wider">PURIFIER</span>
+            </div>
         );
 
-        // --- Pipe Logic & Data ---
+        // --- GAME LOGIC ---
+
+        // Directions: 0:Up, 1:Right, 2:Down, 3:Left
+        // Pipe Definitions: Which directions does this pipe connect?
+        // Straight (Horizontal default): Connects Left(3) and Right(1)
+        const PIPES = {
+            straight: [1, 3], 
+            corner: [2, 1], // Bottom-Right corner connects Down(2) and Right(1)
+            cross: [0, 1, 2, 3],
+            tshape: [1, 2, 3] // T pointing down
+        };
 
         const LEVELS = [
-        {
-            id: 1,
-            title: "The House Connection",
-            instruction: "Connect the Bathroom to the Street Pipe.",
-            gridSize: 3,
-            start: { r: 0, c: 0 }, 
-            end: { r: 2, c: 2 },   
-            layout: [
-            { type: 'start', rotation: 0 }, { type: 'pipe', rotation: 90, shape: 'straight' }, { type: 'empty' },
-            { type: 'empty' }, { type: 'pipe', rotation: 0, shape: 'corner' }, { type: 'pipe', rotation: 90, shape: 'straight' },
-            { type: 'empty' }, { type: 'empty' }, { type: 'end', rotation: 0 }
-            ],
-            solutionPath: [0, 1, 4, 5, 8]
-        },
-        {
-            id: 2,
-            title: "The Neighborhood Junction",
-            instruction: "Merge the waste from two houses onto the Main Highway.",
-            gridSize: 4,
-            layout: [
-            { type: 'start', rotation: 0, label: 'House 1' }, { type: 'pipe', rotation: 90, shape: 'straight' }, { type: 'pipe', rotation: 180, shape: 'corner' }, { type: 'empty' },
-            { type: 'empty' }, { type: 'empty' }, { type: 'pipe', rotation: 0, shape: 'straight' }, { type: 'empty' },
-            { type: 'start', rotation: 0, label: 'House 2' }, { type: 'pipe', rotation: 0, shape: 'straight' }, { type: 'pipe', rotation: 270, shape: 't-shape' }, { type: 'pipe', rotation: 0, shape: 'straight' },
-            { type: 'empty' }, { type: 'empty' }, { type: 'pipe', rotation: 0, shape: 'straight' }, { type: 'end', rotation: 0 }
-            ]
-        },
-        {
-            id: 3,
-            title: "The Treatment Plant",
-            instruction: "Guide the dirty water into the cleaning tanks.",
-            gridSize: 4,
-            layout: [
-            { type: 'start', rotation: 0 }, { type: 'pipe', rotation: 0, shape: 'straight' }, { type: 'pipe', rotation: 90, shape: 'corner' }, { type: 'empty' },
-            { type: 'empty' }, { type: 'pipe', rotation: 0, shape: 'corner' }, { type: 'pipe', rotation: 180, shape: 't-shape' }, { type: 'pipe', rotation: 180, shape: 'corner' },
-            { type: 'empty' }, { type: 'pipe', rotation: 0, shape: 'straight' }, { type: 'empty' }, { type: 'pipe', rotation: 0, shape: 'straight' },
-            { type: 'empty' }, { type: 'end', rotation: 0 }, { type: 'empty' }, { type: 'end', rotation: 0 }
-            ]
-        }
+            {
+                id: 1,
+                gridSize: 4,
+                start: { r: 0, c: 0 }, // Top Left
+                end: { r: 3, c: 3 },   // Bottom Right
+                layout: [
+                    { t: 'start', r: 0 }, { t: 'straight', r: 90 }, { t: 'corner', r: 180 }, { t: 'empty' },
+                    { t: 'corner', r: 0 }, { t: 'corner', r: 270 }, { t: 'straight', r: 0 }, { t: 'empty' },
+                    { t: 'straight', r: 0 }, { t: 'empty' }, { t: 'corner', r: 0 }, { t: 'straight', r: 90 },
+                    { t: 'corner', r: 270 }, { t: 'straight', r: 90 }, { t: 'corner', r: 270 }, { t: 'end', r: 0 }
+                ]
+            },
+            {
+                id: 2,
+                gridSize: 4,
+                start: { r: 0, c: 1 }, 
+                end: { r: 3, c: 1 },   
+                layout: [
+                    { t: 'corner', r: 0 }, { t: 'start', r: 0 }, { t: 'corner', r: 90 }, { t: 'empty' },
+                    { t: 'straight', r: 0 }, { t: 'tshape', r: 0 }, { t: 'straight', r: 0 }, { t: 'empty' },
+                    { t: 'empty' }, { t: 'straight', r: 0 }, { t: 'corner', r: 270 }, { t: 'corner', r: 180 },
+                    { t: 'empty' }, { t: 'end', r: 0 }, { t: 'empty' }, { t: 'straight', r: 0 }
+                ]
+            }
         ];
 
-        // --- Main Game Component ---
+        // Helper to get connected directions based on rotation
+        const getConnections = (type, rotation) => {
+            if (type === 'start') return [2]; // Down
+            if (type === 'end') return [0];   // Up
+            if (type === 'empty') return [];
 
-        function SewerSystemGame() {
-            const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
-            const [gameState, setGameState] = useState('intro');
+            const baseDirs = PIPES[type];
+            // Rotate directions: (dir + rotation/90) % 4
+            const steps = rotation / 90;
+            return baseDirs.map(d => (d + steps) % 4);
+        };
+
+        // Helper: Get opposite direction (Up <-> Down)
+        const getOpposite = (dir) => (dir + 2) % 4;
+
+        // Helper: Get next coordinate based on direction
+        const getNextCoord = (r, c, dir) => {
+            if (dir === 0) return { r: r - 1, c: c };
+            if (dir === 1) return { r: r, c: c + 1 };
+            if (dir === 2) return { r: r + 1, c: c };
+            if (dir === 3) return { r: r, c: c - 1 };
+            return { r, c };
+        };
+
+        export default function App() {
+            const [levelIdx, setLevelIdx] = useState(0);
             const [grid, setGrid] = useState([]);
-            const [flowProgress, setFlowProgress] = useState(0);
+            const [gameState, setGameState] = useState('planning'); // planning, flushing, flowing, won, lost
+            const [waterPath, setWaterPath] = useState([]); // Array of coordinates water has visited
+            const [activeWaterIndex, setActiveWaterIndex] = useState(-1); // For animation
+            const [tankFill, setTankFill] = useState(0);
+            const [message, setMessage] = useState("Rotate the pipes to build the system!");
 
+            // Init Level
             useEffect(() => {
-                if (gameState === 'intro' || gameState === 'complete') return;
-                
-                const levelData = LEVELS[currentLevelIndex];
-                const initialGrid = levelData.layout.map((cell, index) => ({
-                ...cell,
-                id: index,
-                rotation: cell.type === 'pipe' ? Math.floor(Math.random() * 4) * 90 : cell.rotation
+                loadLevel(levelIdx);
+            }, [levelIdx]);
+
+            const loadLevel = (idx) => {
+                const lvl = LEVELS[idx];
+                const newGrid = lvl.layout.map((cell, i) => ({
+                    ...cell,
+                    id: i,
+                    rotation: cell.t === 'start' || cell.t === 'end' ? cell.r : Math.floor(Math.random() * 4) * 90
                 }));
-                setGrid(initialGrid);
-                setFlowProgress(0);
-            }, [currentLevelIndex, gameState]);
-
-            const handleTileClick = (index) => {
-                if (gameState === 'flowing' || gameState === 'success') return;
-
-                setGrid(prev => {
-                const newGrid = [...prev];
-                const cell = newGrid[index];
-                if (cell.type === 'pipe') {
-                    newGrid[index] = { ...cell, rotation: (cell.rotation + 90) % 360 };
-                }
-                return newGrid;
-                });
+                setGrid(newGrid);
+                setGameState('planning');
+                setWaterPath([]);
+                setActiveWaterIndex(-1);
+                setTankFill(0);
+                setMessage("Connect the House to the Treatment Plant.");
             };
 
-            const checkSystem = () => {
-                let isCorrect = false;
-                const g = grid;
+            const rotatePipe = (index) => {
+                if (gameState !== 'planning') return;
+                const cell = grid[index];
+                if (cell.t === 'start' || cell.t === 'end' || cell.t === 'empty') return;
 
-                if (currentLevelIndex === 0) {
-                    if (g[1].rotation === 90 && g[4].rotation === 0 && g[5].rotation === 0) isCorrect = true;
-                } 
-                else if (currentLevelIndex === 1) {
-                    if (g[1].rotation === 90 && g[2].rotation === 180 && g[6].rotation === 0 && g[9].rotation === 0 && g[10].rotation === 270 && g[11].rotation === 0 && g[14].rotation === 0) isCorrect = true;
-                }
-                else {
-                    if (g[6].rotation === 180) isCorrect = true; 
-                }
-
-                if (isCorrect) {
-                startFlow();
-                } else {
-                    // Logic for shake could go here
-                }
+                const newGrid = [...grid];
+                newGrid[index].rotation = (cell.rotation + 90) % 360;
+                setGrid(newGrid);
             };
 
-            const startFlow = () => {
-                setGameState('flowing');
-                const interval = setInterval(() => {
-                setFlowProgress(prev => {
-                    if (prev >= 100) {
-                    clearInterval(interval);
-                    setGameState('success');
-                    return 100;
+            const handleFlush = () => {
+                if (gameState !== 'planning') return;
+                setGameState('flushing');
+                setMessage("FLUSHING! Here comes the waste...");
+                
+                // Calculate Path immediately
+                const path = calculatePath();
+                setWaterPath(path);
+                
+                // Start Animation sequence
+                setTimeout(() => {
+                    setGameState('flowing');
+                    animateFlow(path, 0);
+                }, 1000); // Wait for flush animation
+            };
+
+            const calculatePath = () => {
+                const lvl = LEVELS[levelIdx];
+                const size = lvl.gridSize;
+                let path = [{ r: lvl.start.r, c: lvl.start.c, dir: 2 }]; // Start pushing DOWN
+                let curr = { r: lvl.start.r, c: lvl.start.c };
+                let incomingDir = null; // Came from nowhere initially
+
+                // Simulation Loop (Safety break at 50 steps)
+                for (let i = 0; i < 50; i++) {
+                    const cellIdx = curr.r * size + curr.c;
+                    const cell = grid[cellIdx];
+                    
+                    // 1. Get available exits for this cell
+                    const exits = getConnections(cell.t, cell.rotation);
+                    
+                    // 2. Filter exits: Cannot go back where we came from
+                    // If we entered from UP (dir 2), we can't exit UP (dir 0) unless dead end logic?
+                    // Actually, simpler: We need to find the exit that ISN'T the entrance.
+                    
+                    let validExit = null;
+
+                    if (cell.t === 'start') {
+                        validExit = 2; // Always down
+                    } else {
+                        // We entered this cell from 'incomingDir'.
+                        // So the entrance on this cell is getOpposite(incomingDir)
+                        const entrance = getOpposite(incomingDir);
+                        
+                        // Check if this cell actually connects to that entrance
+                        if (!exits.includes(entrance)) {
+                            // Blockage! Water hit a wall on this tile.
+                            return path; 
+                        }
+
+                        // Find the OTHER connection
+                        validExit = exits.find(d => d !== entrance);
                     }
-                    return prev + 2; 
-                });
-                }, 50);
+
+                    if (validExit === undefined) {
+                        // Dead end or T-junction logic could be complex, for simplicity, if T-shape, pick straightest or first non-entry
+                        // For this game, let's assume strictly 1-in-1-out flow for success, stops otherwise
+                         return path;
+                    }
+
+                    // 3. Move to next cell
+                    const nextPos = getNextCoord(curr.r, curr.c, validExit);
+                    
+                    // Check bounds
+                    if (nextPos.r < 0 || nextPos.r >= size || nextPos.c < 0 || nextPos.c >= size) {
+                        return path; // Flowed off map
+                    }
+
+                    // 4. Add to path
+                    path.push({ r: nextPos.r, c: nextPos.c, dir: validExit });
+                    
+                    // 5. Check if we hit End
+                    const nextIdx = nextPos.r * size + nextPos.c;
+                    const nextCell = grid[nextIdx];
+                    
+                    if (nextCell.t === 'end') {
+                         // Check if End tile accepts connection from this direction
+                         // End accepts from UP (0). We are moving DOWN (2)? 
+                         // Logic: End tile is usually fixed. Let's assume if we touch it, we check alignment.
+                         const endAccepts = getConnections('end', nextCell.rotation);
+                         const approachDir = getOpposite(validExit);
+                         if (endAccepts.includes(approachDir)) {
+                             // SUCCESS
+                             return path;
+                         } else {
+                             // Hit the side of the factory
+                             return path;
+                         }
+                    }
+
+                    // Update for next loop
+                    curr = nextPos;
+                    incomingDir = validExit; // We are moving in this direction
+                }
+                return path;
+            };
+
+            const animateFlow = (path, step) => {
+                if (step >= path.length) {
+                    // Animation done. Check result.
+                    const lastStep = path[path.length - 1];
+                    const lvl = LEVELS[levelIdx];
+                    if (lastStep.r === lvl.end.r && lastStep.c === lvl.end.c) {
+                        handleWin();
+                    } else {
+                        handleLoss();
+                    }
+                    return;
+                }
+
+                setActiveWaterIndex(step);
+                
+                // Audio effect placeholder (visual only here)
+                
+                setTimeout(() => {
+                    animateFlow(path, step + 1);
+                }, 400); // Speed of water
+            };
+
+            const handleWin = () => {
+                setGameState('won');
+                setMessage("SYSTEM OPERATIONAL! Waste treated.");
+                setTankFill(100);
+            };
+
+            const handleLoss = () => {
+                setGameState('lost');
+                setMessage("BLOCKAGE DETECTED! Oh no! Fix the pipes!");
             };
 
             const nextLevel = () => {
-                if (currentLevelIndex < LEVELS.length - 1) {
-                setCurrentLevelIndex(prev => prev + 1);
-                setGameState('playing');
+                if (levelIdx + 1 < LEVELS.length) {
+                    setLevelIdx(levelIdx + 1);
                 } else {
-                setGameState('complete');
+                    setMessage("ALL SYSTEMS COMPLETE! Master Plumber!");
                 }
             };
 
-            const renderPipe = (cell) => {
-                const color = gameState === 'flowing' || gameState === 'success' ? '#3B82F6' : '#9CA3AF'; 
-                const flowColor = '#60A5FA'; 
+            // --- RENDERERS ---
+
+            const renderPipe = (cell, isWaterHere, isFlowing, isClean) => {
+                const size = 100; // viewBox size
+                const center = size / 2;
+                const thickness = 30;
                 
-                const shapes = {
-                straight: (
-                    <g>
-                    <rect x="15" y="0" width="20" height="50" fill={color} />
-                    <rect x="20" y="0" width="10" height="50" fill={flowProgress > 0 ? flowColor : 'transparent'} opacity={flowProgress/100} />
-                    </g>
-                ),
-                corner: (
-                    <g>
-                    <path d="M25 0 V25 H50" stroke={color} strokeWidth="20" fill="none" />
-                    <path d="M25 0 V25 H50" stroke={flowProgress > 0 ? flowColor : 'transparent'} strokeWidth="10" fill="none" opacity={flowProgress/100} />
-                    </g>
-                ),
-                't-shape': (
-                    <g>
-                    <path d="M0 25 H50 M25 25 V50" stroke={color} strokeWidth="20" fill="none" />
-                    <path d="M0 25 H50 M25 25 V50" stroke={flowProgress > 0 ? flowColor : 'transparent'} strokeWidth="10" fill="none" opacity={flowProgress/100} />
-                    </g>
-                ),
-                cross: (
-                    <g>
-                    <path d="M0 25 H50 M25 0 V50" stroke={color} strokeWidth="20" fill="none" />
-                    <path d="M0 25 H50 M25 0 V50" stroke={flowProgress > 0 ? flowColor : 'transparent'} strokeWidth="10" fill="none" opacity={flowProgress/100} />
-                    </g>
-                )
-                };
+                // Color logic
+                const pipeColor = "#555";
+                const waterColor = isClean ? "#3B82F6" : "#8B4513"; // Blue if clean (won), Brown if waste
+                
+                // Determine paths based on type
+                let d = "";
+                // Simple shapes for SVG
+                if (cell.t === 'straight') {
+                     d = `M0 ${center-thickness/2} H${size} V${center+thickness/2} H0 Z`; // Horizontal bar
+                } else if (cell.t === 'corner') {
+                     // Bottom-Right corner: Connects Bottom and Right
+                     d = `M${center-thickness/2} ${size} V${center-thickness/2} H${size} V${center+thickness/2} H${center+thickness/2} V${size} Z`;
+                } else if (cell.t === 'tshape') {
+                     // T shape: Left, Right, Bottom
+                     d = `M0 ${center-thickness/2} H${size} V${center+thickness/2} H${center+thickness/2} V${size} H${center-thickness/2} V${center+thickness/2} H0 Z`;
+                } else if (cell.t === 'cross') {
+                     d = `M0 ${center-thickness/2} H${size} V${center+thickness/2} H0 Z M${center-thickness/2} 0 V${size} H${center+thickness/2} V0 Z`;
+                }
 
                 return (
-                <div 
-                    className="w-full h-full transition-transform duration-300 ease-in-out" 
-                    style={{ transform: `rotate(${cell.rotation}deg)` }}
-                >
-                    <svg viewBox="0 0 50 50" className="w-full h-full drop-shadow-sm">
-                    {shapes[cell.shape] || shapes['straight']}
-                    </svg>
-                </div>
+                    <div 
+                        className="w-full h-full transition-transform duration-300 relative"
+                        style={{ transform: `rotate(${cell.rotation}deg)` }}
+                    >
+                        <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
+                            {/* Pipe Body */}
+                            <path d={d} fill={pipeColor} stroke="#333" strokeWidth="2" />
+                            
+                            {/* Pipe Details (Bolts) */}
+                            <circle cx="50" cy="50" r="8" fill="#444" />
+                        </svg>
+                        
+                        {/* WATER OVERLAY */}
+                        {isWaterHere && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                                <div className={`w-8 h-8 rounded-full shadow-lg transform transition-all duration-300 ${isClean ? 'bg-blue-400' : 'bg-yellow-800'}`}></div>
+                            </div>
+                        )}
+                    </div>
                 );
             };
 
-            if (gameState === 'intro') {
-                return (
-                <div className="min-h-screen bg-blue-50 flex flex-col items-center justify-center p-4 font-sans">
-                    <Card className="max-w-md w-full p-8 text-center space-y-6">
-                    <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <MapIcon className="text-blue-600 w-12 h-12" size={48} />
-                    </div>
-                    <h1 className="text-3xl font-extrabold text-blue-900">Dalton's Underground Highway</h1>
-                    <p className="text-gray-600 text-lg">
-                        Connect the pipes to help the city! 
-                        Waste needs to travel from the <strong>House</strong> to the <strong>Treatment Plant</strong>.
-                    </p>
-                    <p className="text-sm bg-yellow-100 p-3 rounded-lg text-yellow-800 font-medium border border-yellow-200">
-                        Build the System. Start the Flow.
-                    </p>
-                    <div className="pt-4 flex justify-center">
-                        <Button onClick={() => setGameState('playing')}>
-                        <Play size={24} fill="currentColor" />
-                        START SYSTEM
-                        </Button>
-                    </div>
-                    </Card>
-                </div>
-                );
-            }
-
-            if (gameState === 'complete') {
-                return (
-                <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-4">
-                    <Card className="max-w-md w-full p-8 text-center space-y-6">
-                    <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                        <CheckCircle className="text-green-600 w-16 h-16" size={64} />
-                    </div>
-                    <h1 className="text-3xl font-extrabold text-green-900">System Fully Operational!</h1>
-                    <p className="text-gray-700 text-lg">
-                        You built a great network, Dalton! All the waste is now moving safely to the plant to be cleaned.
-                    </p>
-                    <Button onClick={() => { setCurrentLevelIndex(0); setGameState('intro'); }}>
-                        <RotateCw size={24} />
-                        Play Again
-                    </Button>
-                    </Card>
-                </div>
-                );
-            }
-
-            const currentLevel = LEVELS[currentLevelIndex];
-
             return (
-                <div className="min-h-screen bg-slate-100 flex flex-col items-center p-4">
-                <div className="w-full max-w-2xl flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                    <div>
-                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                        <Settings className="text-slate-400" size={20} />
-                        Level {currentLevelIndex + 1}: {currentLevel.title}
-                    </h2>
-                    <p className="text-slate-500 text-sm">{currentLevel.instruction}</p>
-                    </div>
-                    <div className="flex gap-2">
-                    <div className={`h-3 w-3 rounded-full ${gameState === 'flowing' || gameState === 'success' ? 'bg-green-500 animate-pulse' : 'bg-red-400'}`}></div>
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                        {gameState === 'playing' ? 'SYSTEM OFF' : 'SYSTEM ON'}
-                    </span>
-                    </div>
-                </div>
-
-                <Card className="p-6 bg-slate-800 border-slate-700 relative">
-                    <div 
-                    className="grid gap-1 bg-slate-900 p-2 rounded-lg border-4 border-slate-700 shadow-inner"
-                    style={{ 
-                        gridTemplateColumns: `repeat(${currentLevel.gridSize}, minmax(0, 1fr))`,
-                        width: '100%',
-                        maxWidth: '500px'
-                    }}
-                    >
-                    {grid.map((cell, idx) => (
-                        <div 
-                        key={idx}
-                        onClick={() => handleTileClick(idx)}
-                        className={`
-                            aspect-square rounded-md flex items-center justify-center relative
-                            ${cell.type === 'empty' ? 'bg-slate-800/50' : 'bg-slate-700 cursor-pointer hover:bg-slate-600'}
-                            ${cell.type === 'start' || cell.type === 'end' ? 'bg-transparent cursor-default hover:bg-transparent' : ''}
-                            transition-colors
-                        `}
-                        >
-                        {cell.type === 'start' && (
-                            <div className="flex flex-col items-center justify-center text-white z-10 animate-bounce-slight">
-                            <div className="bg-yellow-500 p-2 rounded-full shadow-lg border-2 border-white">
-                                <Home size={24} />
-                            </div>
-                            <span className="text-[10px] font-bold mt-1 bg-slate-900 px-2 rounded text-yellow-400">HOUSE</span>
-                            </div>
-                        )}
-                        
-                        {cell.type === 'end' && (
-                            <div className="flex flex-col items-center justify-center text-white z-10">
-                            <div className="bg-blue-600 p-2 rounded-full shadow-lg border-2 border-white">
-                                <Factory size={24} />
-                            </div>
-                            <span className="text-[10px] font-bold mt-1 bg-slate-900 px-2 rounded text-blue-300">PLANT</span>
-                            </div>
-                        )}
-
-                        {cell.type === 'pipe' && renderPipe(cell)}
-                        
-                        {cell.type === 'pipe' && gameState === 'playing' && (
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 pointer-events-none">
-                            <RotateCw className="text-white drop-shadow-md" size={20} />
-                            </div>
-                        )}
-                        </div>
-                    ))}
-                    </div>
-
-                    <div className="mt-4 flex gap-4 justify-center text-slate-400 text-xs font-mono">
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-slate-700 rounded"></div> Pipe
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-blue-500 rounded"></div> Water
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-yellow-500 rounded"></div> Origin
-                    </div>
-                    </div>
-                </Card>
-
-                <div className="mt-8 h-20">
-                    {gameState === 'playing' && (
-                    <Button onClick={checkSystem} className="w-full shadow-xl animate-bounce-slight">
-                        TEST CONNECTION
-                    </Button>
-                    )}
+                <div className="min-h-screen dirt-pattern flex flex-col items-center py-8 px-4 text-white">
                     
-                    {gameState === 'flowing' && (
-                    <div className="text-blue-600 font-bold text-xl flex items-center gap-3 bg-white px-6 py-3 rounded-full shadow-md">
-                        <Droplet className="animate-bounce" fill="currentColor" size={24} />
-                        FLOWING... {flowProgress}%
+                    {/* Header HUD */}
+                    <div className="w-full max-w-lg bg-gray-800 border-4 border-gray-600 rounded-xl p-4 mb-6 shadow-2xl flex justify-between items-center z-20">
+                        <div>
+                            <h1 className="text-xl font-bold text-yellow-400 uppercase tracking-widest">Sewer Sim 2.0</h1>
+                            <div className="text-sm text-gray-300">{message}</div>
+                        </div>
+                        <div className={`w-4 h-4 rounded-full ${gameState === 'planning' ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`}></div>
                     </div>
-                    )}
 
-                    {gameState === 'success' && (
-                    <Button onClick={nextLevel} className="bg-green-500 hover:bg-green-400 text-white border-green-700">
-                        NEXT LEVEL <ArrowRight size={20} />
-                    </Button>
-                    )}
-                </div>
+                    <div className="flex flex-col md:flex-row gap-4 items-center justify-center w-full max-w-4xl">
+                        
+                        {/* HOUSE CARD */}
+                        <div className="bg-orange-100 rounded-xl p-4 border-4 border-orange-300 text-center w-40 shadow-xl flex flex-col justify-between h-64">
+                            <div className="font-bold text-orange-800 mb-2">THE HOUSE</div>
+                            <ToiletIcon isFlushing={gameState === 'flushing'} />
+                            <button 
+                                onClick={handleFlush}
+                                disabled={gameState !== 'planning'}
+                                className={`mt-4 w-full py-3 rounded-lg font-bold text-white shadow-md transition-transform active:scale-95
+                                    ${gameState === 'planning' ? 'bg-red-600 hover:bg-red-500 border-b-4 border-red-800' : 'bg-gray-400 cursor-not-allowed'}
+                                `}
+                            >
+                                {gameState === 'planning' ? 'FLUSH!' : 'Wait...'}
+                            </button>
+                        </div>
 
-                <div className="mt-6 max-w-md text-center bg-white/80 p-4 rounded-xl backdrop-blur-sm border border-slate-200">
-                    <h3 className="font-bold text-slate-700 mb-1">Did you know?</h3>
-                    <p className="text-sm text-slate-600">
-                    Under the street, pipes work like highways! The <strong>Sewer Main</strong> is like a big highway for water to travel to the cleaning plant.
-                    </p>
-                </div>
+                        {/* GAME GRID */}
+                        <div className="bg-gray-900 p-4 rounded-xl border-8 border-gray-700 shadow-2xl relative">
+                            <div 
+                                className="grid gap-1"
+                                style={{ 
+                                    gridTemplateColumns: `repeat(${LEVELS[levelIdx].gridSize}, minmax(0, 1fr))`,
+                                    width: '320px',
+                                    height: '320px'
+                                }}
+                            >
+                                {grid.map((cell, idx) => {
+                                    // Check if water is currently in this cell
+                                    const pathIndex = waterPath.findIndex(p => p.r * LEVELS[levelIdx].gridSize + p.c === idx);
+                                    const isWaterHere = pathIndex !== -1 && pathIndex <= activeWaterIndex;
+                                    const isHead = pathIndex === activeWaterIndex; // The leading edge of water
+                                    const isClean = gameState === 'won'; // Turn blue on win
+
+                                    return (
+                                        <div 
+                                            key={idx}
+                                            onClick={() => rotatePipe(idx)}
+                                            className={`
+                                                relative w-full h-full rounded flex items-center justify-center overflow-visible
+                                                ${cell.t === 'empty' ? 'bg-transparent' : 'bg-gray-800/50 hover:bg-gray-700 cursor-pointer'}
+                                            `}
+                                        >
+                                            {cell.t !== 'empty' && renderPipe(cell, isHead, gameState !== 'planning', isClean)}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* FACTORY CARD */}
+                        <div className="bg-blue-100 rounded-xl p-4 border-4 border-blue-300 text-center w-40 shadow-xl flex flex-col justify-between h-64">
+                            <div className="font-bold text-blue-900 mb-2">TREATMENT</div>
+                            <FactoryIcon fillLevel={tankFill} />
+                            
+                            {gameState === 'won' && (
+                                <button 
+                                    onClick={nextLevel}
+                                    className="mt-4 w-full py-3 rounded-lg font-bold text-white bg-green-500 hover:bg-green-400 border-b-4 border-green-700 shadow-md animate-bounce"
+                                >
+                                    NEXT LEVEL
+                                </button>
+                            )}
+                            {gameState === 'lost' && (
+                                <button 
+                                    onClick={() => loadLevel(levelIdx)}
+                                    className="mt-4 w-full py-3 rounded-lg font-bold text-white bg-yellow-500 hover:bg-yellow-400 border-b-4 border-yellow-700 shadow-md"
+                                >
+                                    TRY AGAIN
+                                </button>
+                            )}
+                            {gameState !== 'won' && gameState !== 'lost' && (
+                                <div className="mt-4 text-xs text-blue-400 font-mono">WAITING FOR INPUT...</div>
+                            )}
+                        </div>
+
+                    </div>
+                    
+                    {/* Educational Footer */}
+                    <div className="mt-8 text-center opacity-75">
+                         <p className="text-yellow-100 text-sm">Use the pipes to guide the waste to the purifier.</p>
+                         <p className="text-gray-400 text-xs mt-1">Brown Water = Dirty | Blue Water = Clean</p>
+                    </div>
+
                 </div>
             );
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<SewerSystemGame />);
+        root.render(<App />);
     </script>
 </body>
 </html>
